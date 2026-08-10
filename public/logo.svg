@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#1E1B4B" />
+      <stop offset="60%" stop-color="#0F0E2A" />
+      <stop offset="100%" stop-color="#070614" />
+    </radialGradient>
+
+    <linearGradient id="vaultGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C084FC" />
+      <stop offset="40%" stop-color="#8B5CF6" />
+      <stop offset="80%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+
+    <linearGradient id="coreGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0.2" />
+    </linearGradient>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect width="512" height="512" rx="112" fill="none" stroke="#8B5CF6" stroke-opacity="0.3" stroke-width="4" />
+
+  <!-- Ambient Glow Behind Symbol -->
+  <circle cx="256" cy="256" r="140" fill="#8B5CF6" fill-opacity="0.15" filter="url(#glow)" />
+
+  <!-- MediaVault 'M' Geometry -->
+  <g fill="url(#vaultGrad)">
+    <!-- Left Architectural Pillar -->
+    <path d="M 120 156 C 120 142 131 132 145 132 L 175 132 C 189 132 200 142 200 156 L 200 376 C 200 388 190 396 178 396 L 142 396 C 130 396 120 388 120 376 Z" />
+
+    <!-- Right Architectural Pillar -->
+    <path d="M 312 156 C 312 142 323 132 337 132 L 367 132 C 381 132 392 142 392 156 L 392 376 C 392 388 382 396 370 396 L 334 396 C 322 396 312 388 312 376 Z" />
+
+    <!-- Central Descending Arrow / Chevron Vault Apex -->
+    <path d="M 198 168 L 256 248 L 314 168 C 322 158 335 158 342 167 C 349 175 348 188 340 197 L 268 284 C 262 292 250 292 244 284 L 172 197 C 164 188 163 175 170 167 C 177 158 190 158 198 168 Z" />
+
+    <!-- Downward Media Download Apex -->
+    <path d="M 234 274 L 256 304 L 278 274 C 284 266 295 266 301 273 C 307 280 306 290 300 297 L 267 338 C 261 345 251 345 245 338 L 212 297 C 206 290 205 280 211 273 C 217 266 228 266 234 274 Z" fill="url(#vaultGrad)" />
+
+    <!-- Solid Foundation Tray -->
+    <rect x="136" y="416" width="240" height="24" rx="12" fill="url(#vaultGrad)" />
+  </g>
+
+  <!-- Specular Highlights -->
+  <g fill="url(#coreGlow)">
+    <circle cx="160" cy="156" r="10" />
+    <circle cx="352" cy="156" r="10" />
+  </g>
+</svg>

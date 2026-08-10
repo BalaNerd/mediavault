@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # Standalone MediaVault Download Worker
+  mediavault-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mediavault-worker
+    restart: unless-stopped
+    command: ["npm", "run", "worker"]
+    ports:
+      - '4000:4000'
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - MEDIAVAULT_DATA_DIR=/app/data
+      - MEDIA_STORAGE_PATH=/app/downloads
+      - MEDIAVAULT_WORKER_TOKEN=${MEDIAVAULT_WORKER_TOKEN:-default_dev_worker_token}
+      - YTDLP_PATH=yt-dlp
+      - SPOTDL_PATH=spotdl
+      - FFMPEG_PATH=ffmpeg
+    volumes:
+      # Database persistence
+      - mediavault_data:/app/data
+      # Media storage persistence
+      - ./downloads:/app/downloads
+
+volumes:
+  mediavault_data:
