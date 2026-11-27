@@ -71,6 +71,8 @@ export function getDb(): Database.Database {
     }
     try { db.pragma('synchronous = NORMAL'); } catch { /* ignore */ }
     try { db.pragma('foreign_keys = ON'); } catch { /* ignore */ }
+    try { db.pragma('cache_size = -4000'); } catch { /* ignore */ }
+    try { db.pragma('mmap_size = 0'); } catch { /* ignore */ }
 
     try {
       runMigrations(db);

@@ -82,19 +82,13 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  // Health endpoint (can be public or authenticated)
+  // Health endpoint: Instant lightweight response for Render / Docker probes (never spawn child processes here)
   if (pathname === '/health' && method === 'GET') {
-    try {
-      const health = await downloadService.getHealth();
-      return sendJson(res, 200, {
-        status: 'ok',
-        worker: true,
-        uptime: process.uptime(),
-        ...health,
-      });
-    } catch (err) {
-      return sendJson(res, 500, { error: (err as Error).message });
-    }
+    return sendJson(res, 200, {
+      status: 'ok',
+      worker: true,
+      uptime: process.uptime(),
+    });
   }
 
   // Authentication check for all other endpoints

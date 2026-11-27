@@ -16,11 +16,20 @@ export interface BinaryHealth {
   error?: string;
 }
 
+// In-memory cache for binary version checks to avoid RAM spikes on low-memory environments
+let cachedBinaries: {
+  python: ReturnType<typeof checkPython>;
+  ytdlp: BinaryHealth;
+  ffmpeg: BinaryHealth;
+  spotdl: BinaryHealth;
+} | null = null;
+
 export function checkBinary(binaryPath: string, args: string = '--version'): BinaryHealth {
   try {
     const output = execSync(`"${binaryPath}" ${args}`, {
       timeout: 5000,
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
     })
       .toString()
       .trim();
@@ -39,7 +48,11 @@ export function checkPython(): {
   warning?: string;
 } {
   try {
-    const output = execSync('python --version', { timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] })
+    const output = execSync('python --version', {
+      timeout: 5000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+    })
       .toString()
       .trim();
     const version = output.replace(/^Python\s*/i, '');
@@ -63,10 +76,14 @@ export function getSystemHealth(paths?: {
 }): Record<string, unknown> {
   const settings = getSettings();
 
-  const python = checkPython();
-  const ytdlp = checkBinary(paths?.ytdlp || settings.ytdlpPath || process.env.YTDLP_PATH || 'yt-dlp', '--version');
-  const ffmpeg = checkBinary(paths?.ffmpeg || settings.ffmpegPath || process.env.FFMPEG_PATH || 'ffmpeg', '-version');
-  const spotdl = checkBinary(paths?.spotdl || settings.spotdlPath || process.env.SPOTDL_PATH || 'spotdl', '--version');
+  // Run binary checks sequentially (never in parallel) and cache in memory to prevent RAM spikes
+  if (!cachedBinaries) {
+    const python = checkPython();
+    const ytdlp = checkBinary(paths?.ytdlp || settings.ytdlpPath || process.env.YTDLP_PATH || 'yt-dlp', '--version');
+    const ffmpeg = checkBinary(paths?.ffmpeg || settings.ffmpegPath || process.env.FFMPEG_PATH || 'ffmpeg', '-version');
+    const spotdl = checkBinary(paths?.spotdl || settings.spotdlPath || process.env.SPOTDL_PATH || 'spotdl', '--version');
+    cachedBinaries = { python, ytdlp, ffmpeg, spotdl };
+  }
 
   let sqliteStatus = 'Connected';
   let sqliteError: string | undefined;
@@ -107,11 +124,6 @@ export function getSystemHealth(paths?: {
       status: downloadDirStatus,
       error: downloadDirError,
     },
-    binaries: {
-      python,
-      ytdlp,
-      ffmpeg,
-      spotdl,
-    },
+    binaries: cachedBinaries,
   };
 }

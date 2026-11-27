@@ -25,6 +25,7 @@ ENV NEXT_TELEMETRY_DISABLED 1
 ENV MEDIAVAULT_DATA_DIR /app/data
 ENV MEDIA_STORAGE_PATH /app/downloads
 ENV PORT 4000
+ENV PYTHONDONTWRITEBYTECODE 1
 
 # Install runtime CLI tools: ffmpeg, yt-dlp, gallery-dl, python3
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -46,4 +47,4 @@ COPY --from=builder /app/dist/worker.js ./dist/worker.js
 
 EXPOSE 4000 3000
 
-CMD ["node", "--max-old-space-size=256", "dist/worker.js"]
+CMD ["node", "--max-old-space-size=160", "dist/worker.js"]

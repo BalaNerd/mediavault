@@ -125,12 +125,11 @@ export class LocalDownloadService implements IDownloadService {
   }
 
   async getHealth(): Promise<Record<string, unknown>> {
-    const settings = getSettings();
-    return getSystemHealth({
-      ytdlp: settings.ytdlpPath,
-      ffmpeg: settings.ffmpegPath,
-      spotdl: settings.spotdlPath,
-    });
+    return {
+      status: 'ok',
+      worker: false,
+      uptime: process.uptime(),
+    };
   }
 
   async getFile(id: string): Promise<

@@ -1204,7 +1204,7 @@ var require_atomic_sleep = __commonJS({
 var require_sonic_boom = __commonJS({
   "node_modules/sonic-boom/index.js"(exports2, module2) {
     "use strict";
-    var fs10 = require("fs");
+    var fs9 = require("fs");
     var EventEmitter2 = require("events");
     var inherits = require("util").inherits;
     var path9 = require("path");
@@ -1261,20 +1261,20 @@ var require_sonic_boom = __commonJS({
       const mode = sonic.mode;
       if (sonic.sync) {
         try {
-          if (sonic.mkdir) fs10.mkdirSync(path9.dirname(file), { recursive: true });
-          const fd = fs10.openSync(file, flags, mode);
+          if (sonic.mkdir) fs9.mkdirSync(path9.dirname(file), { recursive: true });
+          const fd = fs9.openSync(file, flags, mode);
           fileOpened(null, fd);
         } catch (err) {
           fileOpened(err);
           throw err;
         }
       } else if (sonic.mkdir) {
-        fs10.mkdir(path9.dirname(file), { recursive: true }, (err) => {
+        fs9.mkdir(path9.dirname(file), { recursive: true }, (err) => {
           if (err) return fileOpened(err);
-          fs10.open(file, flags, mode, fileOpened);
+          fs9.open(file, flags, mode, fileOpened);
         });
       } else {
-        fs10.open(file, flags, mode, fileOpened);
+        fs9.open(file, flags, mode, fileOpened);
       }
     }
     function SonicBoom(opts) {
@@ -1315,8 +1315,8 @@ var require_sonic_boom = __commonJS({
         this.flush = flushBuffer;
         this.flushSync = flushBufferSync;
         this._actualWrite = actualWriteBuffer;
-        fsWriteSync = () => fs10.writeSync(this.fd, this._writingBuf);
-        fsWrite = () => fs10.write(this.fd, this._writingBuf, this.release);
+        fsWriteSync = () => fs9.writeSync(this.fd, this._writingBuf);
+        fsWrite = () => fs9.write(this.fd, this._writingBuf, this.release);
       } else if (contentMode === void 0 || contentMode === kContentModeUtf8) {
         this._writingBuf = "";
         this.write = write;
@@ -1325,15 +1325,15 @@ var require_sonic_boom = __commonJS({
         this._actualWrite = actualWrite;
         fsWriteSync = () => {
           if (Buffer.isBuffer(this._writingBuf)) {
-            return fs10.writeSync(this.fd, this._writingBuf);
+            return fs9.writeSync(this.fd, this._writingBuf);
           }
-          return fs10.writeSync(this.fd, this._writingBuf, "utf8");
+          return fs9.writeSync(this.fd, this._writingBuf, "utf8");
         };
         fsWrite = () => {
           if (Buffer.isBuffer(this._writingBuf)) {
-            return fs10.write(this.fd, this._writingBuf, this.release);
+            return fs9.write(this.fd, this._writingBuf, this.release);
           }
-          return fs10.write(this.fd, this._writingBuf, "utf8", this.release);
+          return fs9.write(this.fd, this._writingBuf, "utf8", this.release);
         };
       } else {
         throw new Error(`SonicBoom supports "${kContentModeUtf8}" and "${kContentModeBuffer}", but passed ${contentMode}`);
@@ -1390,7 +1390,7 @@ var require_sonic_boom = __commonJS({
           }
         }
         if (this._fsync) {
-          fs10.fsyncSync(this.fd);
+          fs9.fsyncSync(this.fd);
         }
         const len = this._len;
         if (this._reopening) {
@@ -1504,7 +1504,7 @@ var require_sonic_boom = __commonJS({
       const onDrain = () => {
         if (!this._fsync) {
           try {
-            fs10.fsync(this.fd, (err) => {
+            fs9.fsync(this.fd, (err) => {
               this._flushPending = false;
               cb(err);
             });
@@ -1606,7 +1606,7 @@ var require_sonic_boom = __commonJS({
       const fd = this.fd;
       this.once("ready", () => {
         if (fd !== this.fd) {
-          fs10.close(fd, (err) => {
+          fs9.close(fd, (err) => {
             if (err) {
               return this.emit("error", err);
             }
@@ -1655,7 +1655,7 @@ var require_sonic_boom = __commonJS({
           buf = this._bufs[0];
         }
         try {
-          const n = Buffer.isBuffer(buf) ? fs10.writeSync(this.fd, buf) : fs10.writeSync(this.fd, buf, "utf8");
+          const n = Buffer.isBuffer(buf) ? fs9.writeSync(this.fd, buf) : fs9.writeSync(this.fd, buf, "utf8");
           const releasedBufObj = releaseWritingBuf(buf, this._len, n);
           buf = releasedBufObj.writingBuf;
           this._len = releasedBufObj.len;
@@ -1671,7 +1671,7 @@ var require_sonic_boom = __commonJS({
         }
       }
       try {
-        fs10.fsyncSync(this.fd);
+        fs9.fsyncSync(this.fd);
       } catch {
       }
     }
@@ -1692,7 +1692,7 @@ var require_sonic_boom = __commonJS({
           buf = mergeBuf(this._bufs[0], this._lens[0]);
         }
         try {
-          const n = fs10.writeSync(this.fd, buf);
+          const n = fs9.writeSync(this.fd, buf);
           buf = buf.subarray(n);
           this._len = Math.max(this._len - n, 0);
           if (buf.length <= 0) {
@@ -1720,13 +1720,13 @@ var require_sonic_boom = __commonJS({
       this._writingBuf = this._writingBuf.length ? this._writingBuf : this._bufs.shift() || "";
       if (this.sync) {
         try {
-          const written = Buffer.isBuffer(this._writingBuf) ? fs10.writeSync(this.fd, this._writingBuf) : fs10.writeSync(this.fd, this._writingBuf, "utf8");
+          const written = Buffer.isBuffer(this._writingBuf) ? fs9.writeSync(this.fd, this._writingBuf) : fs9.writeSync(this.fd, this._writingBuf, "utf8");
           release(null, written);
         } catch (err) {
           release(err);
         }
       } else {
-        fs10.write(this.fd, this._writingBuf, release);
+        fs9.write(this.fd, this._writingBuf, release);
       }
     }
     function actualWriteBuffer() {
@@ -1735,7 +1735,7 @@ var require_sonic_boom = __commonJS({
       this._writingBuf = this._writingBuf.length ? this._writingBuf : mergeBuf(this._bufs.shift(), this._lens.shift());
       if (this.sync) {
         try {
-          const written = fs10.writeSync(this.fd, this._writingBuf);
+          const written = fs9.writeSync(this.fd, this._writingBuf);
           release(null, written);
         } catch (err) {
           release(err);
@@ -1744,7 +1744,7 @@ var require_sonic_boom = __commonJS({
         if (kCopyBuffer) {
           this._writingBuf = Buffer.from(this._writingBuf);
         }
-        fs10.write(this.fd, this._writingBuf, release);
+        fs9.write(this.fd, this._writingBuf, release);
       }
     }
     function actualClose(sonic) {
@@ -1760,12 +1760,12 @@ var require_sonic_boom = __commonJS({
       sonic._lens = [];
       assert(typeof sonic.fd === "number", `sonic.fd must be a number, got ${typeof sonic.fd}`);
       try {
-        fs10.fsync(sonic.fd, closeWrapped);
+        fs9.fsync(sonic.fd, closeWrapped);
       } catch {
       }
       function closeWrapped() {
         if (sonic.fd !== 1 && sonic.fd !== 2) {
-          fs10.close(sonic.fd, done);
+          fs9.close(sonic.fd, done);
         } else {
           done();
         }
@@ -4363,7 +4363,7 @@ var require_pino = __commonJS({
 // src/worker/worker-server.ts
 var import_http = __toESM(require("http"));
 var import_url4 = require("url");
-var import_fs9 = __toESM(require("fs"));
+var import_fs8 = __toESM(require("fs"));
 
 // src/lib/providers/ytdlp.ts
 var import_child_process = require("child_process");
@@ -5623,6 +5623,14 @@ function getDb() {
     } catch {
     }
     try {
+      db.pragma("cache_size = -4000");
+    } catch {
+    }
+    try {
+      db.pragma("mmap_size = 0");
+    } catch {
+    }
+    try {
       runMigrations(db);
     } catch (migErr) {
       console.error("[MediaVault] Migration error:", migErr);
@@ -6182,90 +6190,9 @@ Started: ${(/* @__PURE__ */ new Date()).toISOString()}
   }
 }
 
-// src/lib/utils/health.ts
-var import_child_process4 = require("child_process");
-var import_fs7 = __toESM(require("fs"));
-function checkBinary(binaryPath, args = "--version") {
-  try {
-    const output = (0, import_child_process4.execSync)(`"${binaryPath}" ${args}`, {
-      timeout: 5e3,
-      stdio: ["ignore", "pipe", "pipe"]
-    }).toString().trim();
-    const version = output.split("\n")[0] || "Installed";
-    return { available: true, version, path: binaryPath, status: "Installed" };
-  } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
-    return { available: false, path: binaryPath, status: "Missing", error };
-  }
-}
-function checkPython() {
-  try {
-    const output = (0, import_child_process4.execSync)("python --version", { timeout: 5e3, stdio: ["ignore", "pipe", "pipe"] }).toString().trim();
-    const version = output.replace(/^Python\s*/i, "");
-    let warning;
-    const parts = version.split(".").map((p) => parseInt(p, 10));
-    if (parts[0] === 3 && parts[1] < 11) {
-      warning = `Python ${version} is deprecated by yt-dlp. Downloads remain functional, but Python 3.11+ is recommended.`;
-    }
-    return { available: true, version, status: "Installed", warning };
-  } catch {
-    return { available: false, status: "Missing", warning: "Python not detected on system PATH" };
-  }
-}
-function getSystemHealth(paths) {
-  const settings = getSettings();
-  const python = checkPython();
-  const ytdlp = checkBinary(paths?.ytdlp || settings.ytdlpPath || process.env.YTDLP_PATH || "yt-dlp", "--version");
-  const ffmpeg = checkBinary(paths?.ffmpeg || settings.ffmpegPath || process.env.FFMPEG_PATH || "ffmpeg", "-version");
-  const spotdl = checkBinary(paths?.spotdl || settings.spotdlPath || process.env.SPOTDL_PATH || "spotdl", "--version");
-  let sqliteStatus = "Connected";
-  let sqliteError;
-  let sqlitePath;
-  try {
-    const db = getDb();
-    db.prepare("SELECT 1").get();
-    sqlitePath = db.name;
-  } catch (err) {
-    sqliteStatus = "Error";
-    sqliteError = err instanceof Error ? err.message : String(err);
-  }
-  let downloadDirStatus = "OK";
-  let downloadDirError;
-  try {
-    if (!import_fs7.default.existsSync(settings.downloadDir)) {
-      import_fs7.default.mkdirSync(settings.downloadDir, { recursive: true });
-    }
-    import_fs7.default.accessSync(settings.downloadDir, import_fs7.default.constants.W_OK);
-  } catch (err) {
-    downloadDirStatus = "Error";
-    downloadDirError = err instanceof Error ? err.message : String(err);
-  }
-  return {
-    platform: process.platform,
-    arch: process.arch,
-    nodeVersion: process.version,
-    sqlite: {
-      status: sqliteStatus,
-      path: sqlitePath,
-      error: sqliteError
-    },
-    downloadDir: {
-      path: settings.downloadDir,
-      status: downloadDirStatus,
-      error: downloadDirError
-    },
-    binaries: {
-      python,
-      ytdlp,
-      ffmpeg,
-      spotdl
-    }
-  };
-}
-
 // src/lib/services/download-service.ts
 var import_path8 = __toESM(require("path"));
-var import_fs8 = __toESM(require("fs"));
+var import_fs7 = __toESM(require("fs"));
 var LocalDownloadService = class {
   constructor() {
     this.isWorker = false;
@@ -6342,12 +6269,11 @@ var LocalDownloadService = class {
     clearHistory();
   }
   async getHealth() {
-    const settings = getSettings();
-    return getSystemHealth({
-      ytdlp: settings.ytdlpPath,
-      ffmpeg: settings.ffmpegPath,
-      spotdl: settings.spotdlPath
-    });
+    return {
+      status: "ok",
+      worker: false,
+      uptime: process.uptime()
+    };
   }
   async getFile(id) {
     const job = await this.getJob(id);
@@ -6358,10 +6284,10 @@ var LocalDownloadService = class {
       throw new Error("Media file is not completed or output path is missing.");
     }
     const resolvedPath = import_path8.default.resolve(job.outputPath);
-    if (!import_fs8.default.existsSync(resolvedPath)) {
+    if (!import_fs7.default.existsSync(resolvedPath)) {
       throw new Error("The downloaded media file could not be found on disk.");
     }
-    const stat = import_fs8.default.statSync(resolvedPath);
+    const stat = import_fs7.default.statSync(resolvedPath);
     if (!stat.isFile() || stat.size === 0) {
       throw new Error("The media file is empty or invalid.");
     }
@@ -6448,17 +6374,11 @@ var server = import_http.default.createServer(async (req, res) => {
     return res.end();
   }
   if (pathname === "/health" && method === "GET") {
-    try {
-      const health = await downloadService.getHealth();
-      return sendJson(res, 200, {
-        status: "ok",
-        worker: true,
-        uptime: process.uptime(),
-        ...health
-      });
-    } catch (err) {
-      return sendJson(res, 500, { error: err.message });
-    }
+    return sendJson(res, 200, {
+      status: "ok",
+      worker: true,
+      uptime: process.uptime()
+    });
   }
   if (!verifyAuth(req, res)) return;
   try {
@@ -6579,7 +6499,7 @@ var server = import_http.default.createServer(async (req, res) => {
             "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
             "Access-Control-Allow-Origin": "*"
           });
-          return import_fs9.default.createReadStream(filePath, { start, end }).pipe(res);
+          return import_fs8.default.createReadStream(filePath, { start, end }).pipe(res);
         } else {
           res.writeHead(200, {
             "Content-Length": fileSize,
@@ -6588,7 +6508,7 @@ var server = import_http.default.createServer(async (req, res) => {
             "Accept-Ranges": "bytes",
             "Access-Control-Allow-Origin": "*"
           });
-          return import_fs9.default.createReadStream(filePath).pipe(res);
+          return import_fs8.default.createReadStream(filePath).pipe(res);
         }
       }
     }
