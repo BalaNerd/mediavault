@@ -276,8 +276,8 @@ server.on('error', (err) => {
   console.error('[MediaVault Worker] Server HTTP error:', err);
 });
 
-server.listen(PORT, () => {
-  console.log(`[MediaVault Worker] Running on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[MediaVault Worker] Running on http://0.0.0.0:${PORT}`);
   if (WORKER_TOKEN) {
     console.log(`[MediaVault Worker] Authentication enabled (Bearer token required)`);
   } else {
