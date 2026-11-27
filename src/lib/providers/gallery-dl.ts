@@ -7,7 +7,7 @@
  * SECURITY: All child processes are spawned with array arguments.
  */
 
-import { spawn } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { BaseProvider } from './base';
@@ -15,6 +15,7 @@ import type { MediaMetadata } from '@/types/download';
 import type { ProviderCapabilities } from '@/types/provider';
 import { urlMatchesDomains } from '@/lib/utils/url';
 import { providerLogger } from '@/lib/logger';
+import { verifyFileExists } from '@/lib/utils/filename';
 
 const SUPPORTED_DOMAINS = [
   'reddit.com', 'redd.it',
@@ -69,16 +70,25 @@ export class GalleryDlProvider extends BaseProvider {
 
     try {
       const json = await new Promise<string>((resolve) => {
-        const proc = spawn(binary, ['--dump-json', '--no-download', url], {
-          stdio: ['ignore', 'pipe', 'pipe'],
-        });
-        let out = '';
-        proc.stdout.on('data', (d: Buffer) => { out += d.toString(); });
-        proc.on('close', (code) => {
-          if (code === 0) resolve(out);
-          else resolve('');
-        });
-        proc.on('error', () => resolve(''));
+        try {
+          const proc = spawn(binary, ['--dump-json', '--no-download', url], {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: {
+              ...process.env,
+              PYTHONUTF8: '1',
+              PYTHONIOENCODING: 'utf-8',
+            },
+          });
+          let out = '';
+          proc.stdout?.on('data', (d: Buffer) => { out += d.toString(); });
+          proc.on('close', (code) => {
+            if (code === 0) resolve(out);
+            else resolve('');
+          });
+          proc.on('error', () => resolve(''));
+        } catch {
+          resolve('');
+        }
       });
 
       if (json.trim()) {
@@ -115,10 +125,21 @@ export class GalleryDlProvider extends BaseProvider {
 
       providerLogger.info({ jobId, url }, 'Starting gallery-dl download');
 
-      const proc = spawn(binary, args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
-      });
+      let proc: ChildProcess;
+      try {
+        proc = spawn(binary, args, {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: {
+            ...process.env,
+            PYTHONUTF8: '1',
+            PYTHONIOENCODING: 'utf-8',
+          },
+        });
+      } catch (spawnErr) {
+        delete (global as Record<string, unknown>)[`__mv_proc_${jobId}`];
+        reject(new Error(`Failed to spawn gallery-dl: ${(spawnErr as Error).message}. Ensure gallery-dl is installed.`));
+        return;
+      }
 
       (global as Record<string, unknown>)[`__mv_proc_${jobId}`] = proc;
 
@@ -126,7 +147,7 @@ export class GalleryDlProvider extends BaseProvider {
       let stderrBuffer = '';
       const downloadedFiles: string[] = [];
 
-      proc.stdout.on('data', (chunk: Buffer) => {
+      proc.stdout?.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
         onLog(text);
 
@@ -144,7 +165,7 @@ export class GalleryDlProvider extends BaseProvider {
       });
 
 
-      proc.stderr.on('data', (chunk: Buffer) => {
+      proc.stderr?.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
         stderrBuffer += text;
         onLog(text);
@@ -159,13 +180,11 @@ export class GalleryDlProvider extends BaseProvider {
           if (downloadedFiles.length > 0) {
             // Return the first valid file found
             for (const file of downloadedFiles) {
-              if (fs.existsSync(file)) {
-                const stat = fs.statSync(file);
-                if (stat.isFile() && stat.size > 0) {
-                  providerLogger.info({ jobId, file }, 'Gallery download completed with file');
-                  resolve(file);
-                  return;
-                }
+              const verified = verifyFileExists(file);
+              if (verified) {
+                providerLogger.info({ jobId, file: verified }, 'Gallery download completed with file');
+                resolve(verified);
+                return;
               }
             }
           }

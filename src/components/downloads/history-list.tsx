@@ -81,12 +81,12 @@ export function HistoryList({ initialJobs }: HistoryListProps) {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <Button
             size="sm"
             variant={filter === 'all' ? 'default' : 'outline'}
             onClick={() => setFilter('all')}
-            className="rounded-xl text-xs"
+            className="rounded-xl text-xs h-9 px-3 touch-target"
           >
             All
           </Button>
@@ -94,7 +94,7 @@ export function HistoryList({ initialJobs }: HistoryListProps) {
             size="sm"
             variant={filter === 'completed' ? 'default' : 'outline'}
             onClick={() => setFilter('completed')}
-            className="rounded-xl text-xs"
+            className="rounded-xl text-xs h-9 px-3 touch-target"
           >
             Completed
           </Button>
@@ -102,7 +102,7 @@ export function HistoryList({ initialJobs }: HistoryListProps) {
             size="sm"
             variant={filter === 'failed' ? 'default' : 'outline'}
             onClick={() => setFilter('failed')}
-            className="rounded-xl text-xs"
+            className="rounded-xl text-xs h-9 px-3 touch-target"
           >
             Failed
           </Button>
@@ -112,7 +112,7 @@ export function HistoryList({ initialJobs }: HistoryListProps) {
               size="sm"
               variant="destructive"
               onClick={handleClearHistory}
-              className="rounded-xl text-xs ml-2"
+              className="rounded-xl text-xs h-9 px-3 ml-auto sm:ml-2 touch-target"
             >
               <Trash2 className="w-3.5 h-3.5 mr-1" />
               Clear History

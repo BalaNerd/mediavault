@@ -272,6 +272,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+server.on('error', (err) => {
+  console.error('[MediaVault Worker] Server HTTP error:', err);
+});
+
 server.listen(PORT, () => {
   console.log(`[MediaVault Worker] Running on http://localhost:${PORT}`);
   if (WORKER_TOKEN) {

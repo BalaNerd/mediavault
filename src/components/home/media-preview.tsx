@@ -60,19 +60,19 @@ export function MediaPreview({ metadata }: MediaPreviewProps) {
               ) : null}
             </div>
 
-            <h3 className="font-semibold text-lg leading-snug line-clamp-2">
+            <h3 className="font-semibold text-base sm:text-lg leading-snug line-clamp-2 break-words">
               {metadata.title}
             </h3>
 
             {metadata.author && (
-              <p className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
-                <User className="w-3.5 h-3.5" />
-                <span>{metadata.author}</span>
+              <p className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground mt-1 truncate">
+                <User className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{metadata.author}</span>
               </p>
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground line-clamp-2">
+          <p className="text-xs text-muted-foreground line-clamp-2 break-words">
             {metadata.description || 'Ready for download'}
           </p>
         </div>

@@ -162,13 +162,13 @@ export function DownloadCard({
             )}
 
             <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-xs sm:text-sm leading-snug truncate">
+              <h4 className="font-semibold text-xs sm:text-sm leading-snug line-clamp-2 break-words">
                 {job.title}
               </h4>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
-                <span className="capitalize font-medium">{job.provider}</span>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
+                <span className="capitalize font-medium text-foreground/80">{job.provider}</span>
                 <span>•</span>
-                <span className="truncate max-w-[140px] sm:max-w-none">{job.formatLabel}</span>
+                <span className="truncate max-w-[120px] sm:max-w-none">{job.formatLabel}</span>
                 <span>•</span>
                 <span>{formatRelative(job.createdAt)}</span>
                 {job.retryCount ? (
@@ -255,24 +255,24 @@ export function DownloadCard({
                 <span className="truncate text-[10px] sm:text-xs">{job.outputPath}</span>
               </div>
 
-              <div className="flex items-center gap-1.5 flex-wrap self-start sm:self-auto">
+              <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
                 {/* Mobile / Remote Browser Direct File Download */}
                 <a
                   href={`/api/files/${job.id}`}
                   download
-                  className="inline-flex items-center justify-center rounded-lg font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-7 px-2.5 text-[10px] sm:text-xs"
+                  className="inline-flex items-center justify-center rounded-lg font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-8 sm:h-7 px-3 text-xs sm:text-[11px] touch-target"
                 >
-                  <Download className="w-3 h-3 mr-1" />
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
                   <span>Download File</span>
                 </a>
 
-                <Button size="xs" variant="secondary" onClick={handleOpenFile} className="h-7 px-2 text-[10px] sm:text-xs touch-target">
-                  <Play className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">Open</span>
+                <Button size="xs" variant="secondary" onClick={handleOpenFile} className="h-8 sm:h-7 px-2.5 text-xs sm:text-[11px] touch-target">
+                  <Play className="w-3 h-3 mr-1" /> <span>Open</span>
                 </Button>
-                <Button size="xs" variant="outline" onClick={handleOpenFolder} className="h-7 px-2 text-[10px] sm:text-xs touch-target">
+                <Button size="xs" variant="outline" onClick={handleOpenFolder} className="h-8 sm:h-7 px-2.5 text-xs sm:text-[11px] touch-target">
                   <FolderOpen className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">Folder</span>
                 </Button>
-                <Button size="xs" variant="ghost" onClick={handleCopyPath} className="h-7 px-2 text-[10px] sm:text-xs touch-target">
+                <Button size="xs" variant="ghost" onClick={handleCopyPath} className="h-8 sm:h-7 px-2 text-xs sm:text-[11px] touch-target" aria-label="Copy file path">
                   <Copy className="w-3.5 h-3.5" />
                 </Button>
               </div>
@@ -301,7 +301,7 @@ export function DownloadCard({
             </button>
 
             {showLogs && (
-              <pre className="mt-2 p-3 rounded-lg bg-black/40 text-[11px] font-mono text-muted-foreground overflow-x-auto max-h-40 border border-border/40 whitespace-pre-wrap break-all">
+              <pre className="mt-2 p-3 rounded-lg bg-black/50 text-[11px] font-mono text-muted-foreground overflow-x-auto max-h-48 border border-border/40 whitespace-pre scrollbar-thin">
                 {job.log}
               </pre>
             )}

@@ -16,14 +16,17 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs';
 
-const DB_DIR =
-  process.env.MEDIAVAULT_DATA_DIR ||
-  path.join(os.homedir(), '.mediavault');
-
-const DB_PATH = path.join(DB_DIR, 'mediavault.db');
-
-// Ensure the data directory exists before opening the DB
-fs.mkdirSync(DB_DIR, { recursive: true });
+export function resolveDataDir(): string {
+  const custom = process.env.MEDIAVAULT_DATA_DIR?.trim();
+  if (custom) {
+    if (custom.startsWith('~/') || custom.startsWith('~\\')) {
+      return path.join(os.homedir(), custom.slice(2));
+    }
+    if (custom === '~') return os.homedir();
+    return path.resolve(custom);
+  }
+  return path.join(os.homedir(), '.mediavault');
+}
 
 // Use globalThis so these survive Next.js module hot-reload in dev.
 const g = globalThis as typeof globalThis & {
@@ -35,19 +38,45 @@ export function getDb(): Database.Database {
   // Return cached connection immediately — no re-initialization.
   if (g.__mv_db) return g.__mv_db;
 
-  const db = new Database(DB_PATH);
+  const dbDir = resolveDataDir();
+  const dbPath = path.join(dbDir, 'mediavault.db');
+
+  try {
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+  } catch (err) {
+    console.error(`[MediaVault] Warning: Failed to create data directory at '${dbDir}':`, err);
+  }
+
+  let db: Database.Database;
+  try {
+    db = new Database(dbPath);
+  } catch (err) {
+    console.error(`[MediaVault] Error opening SQLite database at '${dbPath}':`, err);
+    throw new Error(`Failed to initialize SQLite database at '${dbPath}': ${(err as Error).message}`);
+  }
 
   // Schema, PRAGMAs, and crash recovery — run ONCE per Node.js process.
   if (!g.__mv_db_initialized) {
     console.log('[MediaVault] Database initialization');
     
-    // PRAGMAs
+    // PRAGMAs (gracefully fallback if WAL is unavailable on certain filesystems)
     console.log('[MediaVault] Executing PRAGMA statements (WAL, NORMAL, foreign_keys)');
-    db.pragma('journal_mode = WAL');
-    db.pragma('synchronous = NORMAL');
-    db.pragma('foreign_keys = ON');
+    try {
+      db.pragma('journal_mode = WAL');
+    } catch (e) {
+      console.warn('[MediaVault] Warning: WAL journal mode failed, falling back to DELETE mode:', e);
+      try { db.pragma('journal_mode = DELETE'); } catch { /* ignore */ }
+    }
+    try { db.pragma('synchronous = NORMAL'); } catch { /* ignore */ }
+    try { db.pragma('foreign_keys = ON'); } catch { /* ignore */ }
 
-    runMigrations(db);
+    try {
+      runMigrations(db);
+    } catch (migErr) {
+      console.error('[MediaVault] Migration error:', migErr);
+    }
     g.__mv_db_initialized = true;
   }
 

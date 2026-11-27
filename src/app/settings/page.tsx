@@ -412,8 +412,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={saving} className="px-6 h-11 rounded-xl glow-violet">
+        <div className="flex justify-end pt-2">
+          <Button type="submit" disabled={saving} className="w-full sm:w-auto px-6 h-11 rounded-xl glow-violet touch-target">
             <Save className="w-4 h-4 mr-2" />
             <span>Save Settings</span>
           </Button>

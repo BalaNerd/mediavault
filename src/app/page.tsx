@@ -1,22 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { URLInput } from '@/components/home/url-input';
 import { MediaPreview } from '@/components/home/media-preview';
 import { FormatSelector } from '@/components/home/format-selector';
 import { DownloadCard } from '@/components/downloads/download-card';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { MediaMetadata, DownloadFormat, DownloadJob } from '@/types/download';
 
-export default function HomePage() {
+function HomeContent() {
   const [metadata, setMetadata] = useState<MediaMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeJob, setActiveJob] = useState<DownloadJob | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sharedUrl, setSharedUrl] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const handleAnalyze = async (url: string) => {
+  const handleAnalyze = useCallback(async (url: string) => {
     setIsLoading(true);
     setMetadata(null);
     setActiveJob(null);
@@ -42,7 +44,25 @@ export default function HomePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Handle incoming mobile PWA share_target parameters (e.g. from YouTube, Instagram, Spotify share sheets)
+  useEffect(() => {
+    const rawUrl = searchParams.get('url');
+    const rawText = searchParams.get('text');
+
+    let extracted = rawUrl || '';
+    if (!extracted && rawText) {
+      const match = rawText.match(/https?:\/\/[^\s]+/i);
+      if (match) extracted = match[0];
+    }
+
+    if (extracted && extracted !== sharedUrl) {
+      setSharedUrl(extracted);
+      toast.info('Shared link detected! Analyzing media...');
+      handleAnalyze(extracted);
+    }
+  }, [searchParams, sharedUrl, handleAnalyze]);
 
   const handleDownload = async (format: DownloadFormat) => {
     if (!metadata) return;
@@ -80,20 +100,20 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 sm:space-y-8 animate-fade-in">
       {/* Hero Header */}
-      <div className="text-center space-y-3 py-4 max-w-2xl mx-auto">
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+      <div className="text-center space-y-2 sm:space-y-3 py-2 sm:py-4 max-w-2xl mx-auto">
+        <h1 className="text-2xl sm:text-4xl font-bold tracking-tight">
           Download Media <span className="gradient-text">Privately</span>
         </h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
+        <p className="text-xs sm:text-base text-muted-foreground px-2">
           Enter a URL from YouTube, Instagram, Facebook, Spotify, or Direct Media to save to your local vault.
         </p>
       </div>
 
       {/* Main Input */}
       <div className="max-w-2xl mx-auto">
-        <URLInput onAnalyze={handleAnalyze} isLoading={isLoading} />
+        <URLInput onAnalyze={handleAnalyze} isLoading={isLoading} initialUrl={sharedUrl} />
       </div>
 
       {/* Metadata Preview & Format Selector */}
@@ -112,10 +132,10 @@ export default function HomePage() {
       {activeJob && (
         <div className="max-w-3xl mx-auto space-y-3 animate-slide-up">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-base">Active Download Progress</h3>
+            <h3 className="font-semibold text-sm sm:text-base">Active Download Progress</h3>
             <button
               onClick={() => router.push('/downloads')}
-              className="text-xs text-primary hover:underline font-medium"
+              className="text-xs text-primary hover:underline font-medium touch-target py-1"
             >
               View Queue →
             </button>
@@ -124,5 +144,13 @@ export default function HomePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground animate-pulse">Loading MediaVault...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }

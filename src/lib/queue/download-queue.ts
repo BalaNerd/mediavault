@@ -38,6 +38,9 @@ const g = globalThis as typeof globalThis & {
 if (!g.__mv_queue_emitter) {
   g.__mv_queue_emitter = new EventEmitter();
   g.__mv_queue_emitter.setMaxListeners(250);
+  g.__mv_queue_emitter.on('error', (err) => {
+    downloadLogger.error({ err }, 'Unhandled queueEmitter error');
+  });
 }
 
 if (!g.__mv_active_jobs) {
@@ -80,33 +83,37 @@ function dbToJob(row: Record<string, unknown>): DownloadJob {
 }
 
 function updateJobInDb(jobId: string, payload: JobUpdatePayload): void {
-  const db = getDb();
-  const now = Date.now();
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  try {
+    const db = getDb();
+    const now = Date.now();
+    const fields: string[] = [];
+    const values: unknown[] = [];
 
-  if (payload.status !== undefined) { fields.push('status = ?'); values.push(payload.status); }
-  if (payload.phase !== undefined) { fields.push('phase = ?'); values.push(payload.phase); }
-  if (payload.progress !== undefined) { fields.push('progress = ?'); values.push(payload.progress); }
-  if (payload.speed !== undefined) { fields.push('speed = ?'); values.push(payload.speed); }
-  if (payload.eta !== undefined) { fields.push('eta = ?'); values.push(payload.eta); }
-  if (payload.error !== undefined) { fields.push('error = ?'); values.push(payload.error); }
-  if (payload.log !== undefined) { fields.push('log = ?'); values.push(payload.log); }
-  if (payload.outputPath !== undefined) { fields.push('output_path = ?'); values.push(payload.outputPath); }
-  if (payload.fileSize !== undefined) { fields.push('file_size = ?'); values.push(payload.fileSize); }
-  if (payload.downloadedBytes !== undefined) { fields.push('downloaded_bytes = ?'); values.push(payload.downloadedBytes); }
-  if (payload.avgSpeed !== undefined) { fields.push('avg_speed = ?'); values.push(payload.avgSpeed); }
-  if (payload.peakSpeed !== undefined) { fields.push('peak_speed = ?'); values.push(payload.peakSpeed); }
-  if (payload.downloadDuration !== undefined) { fields.push('download_duration = ?'); values.push(payload.downloadDuration); }
-  if (payload.mergeDuration !== undefined) { fields.push('merge_duration = ?'); values.push(payload.mergeDuration); }
-  if (payload.completedAt !== undefined) { fields.push('completed_at = ?'); values.push(payload.completedAt); }
-  if (payload.retryCount !== undefined) { fields.push('retry_count = ?'); values.push(payload.retryCount); }
+    if (payload.status !== undefined) { fields.push('status = ?'); values.push(payload.status); }
+    if (payload.phase !== undefined) { fields.push('phase = ?'); values.push(payload.phase); }
+    if (payload.progress !== undefined) { fields.push('progress = ?'); values.push(payload.progress); }
+    if (payload.speed !== undefined) { fields.push('speed = ?'); values.push(payload.speed); }
+    if (payload.eta !== undefined) { fields.push('eta = ?'); values.push(payload.eta); }
+    if (payload.error !== undefined) { fields.push('error = ?'); values.push(payload.error); }
+    if (payload.log !== undefined) { fields.push('log = ?'); values.push(payload.log); }
+    if (payload.outputPath !== undefined) { fields.push('output_path = ?'); values.push(payload.outputPath); }
+    if (payload.fileSize !== undefined) { fields.push('file_size = ?'); values.push(payload.fileSize); }
+    if (payload.downloadedBytes !== undefined) { fields.push('downloaded_bytes = ?'); values.push(payload.downloadedBytes); }
+    if (payload.avgSpeed !== undefined) { fields.push('avg_speed = ?'); values.push(payload.avgSpeed); }
+    if (payload.peakSpeed !== undefined) { fields.push('peak_speed = ?'); values.push(payload.peakSpeed); }
+    if (payload.downloadDuration !== undefined) { fields.push('download_duration = ?'); values.push(payload.downloadDuration); }
+    if (payload.mergeDuration !== undefined) { fields.push('merge_duration = ?'); values.push(payload.mergeDuration); }
+    if (payload.completedAt !== undefined) { fields.push('completed_at = ?'); values.push(payload.completedAt); }
+    if (payload.retryCount !== undefined) { fields.push('retry_count = ?'); values.push(payload.retryCount); }
 
-  fields.push('updated_at = ?');
-  values.push(now);
-  values.push(jobId);
+    fields.push('updated_at = ?');
+    values.push(now);
+    values.push(jobId);
 
-  db.prepare(`UPDATE jobs SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+    db.prepare(`UPDATE jobs SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  } catch (err) {
+    downloadLogger.error({ jobId, err }, 'Failed to update job in DB');
+  }
 }
 
 function emitUpdate(jobId: string, payload: JobUpdatePayload): void {

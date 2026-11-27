@@ -12,9 +12,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
         <TopBar />
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto w-full">
+        <main className="flex-1 px-3.5 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8 max-w-6xl mx-auto w-full">
           {children}
         </main>
       </div>

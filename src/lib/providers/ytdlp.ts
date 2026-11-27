@@ -9,14 +9,16 @@
  * SECURITY: All child processes are spawned with array arguments.
  */
 
-import { spawn, execSync } from 'child_process';
+import { spawn, execSync, ChildProcess } from 'child_process';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
 import { BaseProvider } from './base';
 import type { MediaMetadata, DownloadFormat, DownloadPhase } from '@/types/download';
 import type { ProviderCapabilities } from '@/types/provider';
 import { urlMatchesDomains } from '@/lib/utils/url';
 import { providerLogger } from '@/lib/logger';
+import { verifyFileExists, findMatchingFileInDir } from '@/lib/utils/filename';
 
 const SUPPORTED_DOMAINS = [
   'youtube.com', 'youtu.be',
@@ -27,7 +29,12 @@ const SUPPORTED_DOMAINS = [
 function resolveFfmpegLocation(configuredPath?: string): string | undefined {
   if (configuredPath && configuredPath !== 'ffmpeg') {
     try {
-      const resolved = path.resolve(configuredPath);
+      let resolved = configuredPath.trim();
+      if (resolved.startsWith('~/') || resolved.startsWith('~\\')) {
+        resolved = path.join(os.homedir(), resolved.slice(2));
+      } else {
+        resolved = path.resolve(resolved);
+      }
       if (fs.existsSync(resolved)) {
         return fs.statSync(resolved).isDirectory() ? resolved : path.dirname(resolved);
       }
@@ -55,28 +62,39 @@ function resolveFfmpegLocation(configuredPath?: string): string | undefined {
 
 function runYtDlp(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const binary = process.env.YTDLP_PATH || 'yt-dlp';
-    const proc = spawn(binary, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    try {
+      const binary = process.env.YTDLP_PATH || 'yt-dlp';
+      const proc = spawn(binary, args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          PYTHONUTF8: '1',
+          PYTHONIOENCODING: 'utf-8',
+        },
+      });
 
-    let stdout = '';
-    let stderr = '';
+      let stdout = '';
+      let stderr = '';
 
-    proc.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
-    proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+      proc.stdout?.on('data', (d: Buffer) => { stdout += d.toString(); });
+      proc.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
 
-    proc.on('close', (code) => {
-      // If exit code is 0, resolve stdout even if stderr had deprecation warnings
-      if (code === 0) {
-        resolve(stdout);
-      } else {
-        const errorMsg = stderr || `yt-dlp exited with code ${code}`;
-        reject(new Error(errorMsg));
-      }
-    });
+      proc.on('close', (code) => {
+        // If exit code is 0, resolve stdout even if stderr had deprecation warnings
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          const errorMsg = stderr || `yt-dlp exited with code ${code}`;
+          reject(new Error(errorMsg));
+        }
+      });
 
-    proc.on('error', (err) => {
-      reject(new Error(`Failed to start yt-dlp: ${err.message}. Is yt-dlp installed and on PATH?`));
-    });
+      proc.on('error', (err) => {
+        reject(new Error(`Failed to start yt-dlp: ${err.message}. Is yt-dlp installed and on PATH?`));
+      });
+    } catch (err) {
+      reject(new Error(`Failed to spawn yt-dlp: ${(err as Error).message}. Is yt-dlp installed and on PATH?`));
+    }
   });
 }
 
@@ -103,6 +121,8 @@ export class YtDlpProvider extends BaseProvider {
         '--dump-single-json',
         '--no-playlist',
         '--no-warnings',
+        '--encoding', 'utf-8',
+        ...(process.platform === 'win32' ? ['--windows-filenames'] : []),
         url,
       ]);
     } catch (err) {
@@ -252,14 +272,26 @@ export class YtDlpProvider extends BaseProvider {
 
       const ffmpegLocation = resolveFfmpegLocation(ffmpegPath);
 
+      // Gracefully handle stream merging when FFmpeg is missing
+      let effectiveFormatId = formatId;
+      if (!ffmpegLocation) {
+        if (isAudioExtraction) {
+          onLog('[MediaVault yt-dlp] Note: FFmpeg not detected in PATH or configuration. Extraction may rely on internal decoders.\n');
+        } else if (!isProgressive) {
+          onLog('[MediaVault yt-dlp] Notice: FFmpeg not found for stream merging. Falling back to best progressive format to ensure successful download.\n');
+          effectiveFormatId = 'best[ext=mp4]/best';
+        }
+      }
+
       const args = [
-        '--format', formatId,
+        '--format', effectiveFormatId,
         '--output', outputTemplate,
         '--no-playlist',
         '--progress',
         '--newline',
         '--no-warnings',
-        '--windows-filenames',
+        '--encoding', 'utf-8',
+        ...(process.platform === 'win32' ? ['--windows-filenames'] : []),
         '--trim-filenames', '200',
         '--print', 'after_move:filepath',
         '--print', 'filename',
@@ -272,22 +304,34 @@ export class YtDlpProvider extends BaseProvider {
 
       if (isAudioExtraction) {
         args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
-      } else if (!isProgressive) {
+      } else if (!isProgressive && ffmpegLocation) {
         args.push('--merge-output-format', 'mp4');
       }
 
       args.push(url);
 
-      providerLogger.info({ jobId, formatId, url, resolvedDir, outputTemplate, ffmpegLocation }, 'Starting yt-dlp download');
+      providerLogger.info({ jobId, formatId: effectiveFormatId, url, resolvedDir, outputTemplate, ffmpegLocation }, 'Starting yt-dlp download');
       onLog(`[MediaVault yt-dlp] Spawning: ${binary} ${args.join(' ')}\n`);
 
-      const proc = spawn(binary, args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: {
-          ...process.env,
-          ...(ffmpegLocation ? { PATH: `${ffmpegLocation}${path.delimiter}${process.env.PATH || ''}` } : {}),
-        },
-      });
+      const downloadStartTime = Date.now();
+      let proc: ChildProcess;
+      try {
+        proc = spawn(binary, args, {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: {
+            ...process.env,
+            PYTHONUTF8: '1',
+            PYTHONIOENCODING: 'utf-8',
+            ...(ffmpegLocation ? { PATH: `${ffmpegLocation}${path.delimiter}${process.env.PATH || ''}` } : {}),
+          },
+        });
+      } catch (spawnErr) {
+        delete (global as Record<string, unknown>)[`__mv_proc_${jobId}`];
+        const msg = `Failed to spawn yt-dlp process: ${(spawnErr as Error).message}. Ensure yt-dlp is installed.`;
+        providerLogger.error({ jobId, err: spawnErr }, msg);
+        reject(new Error(msg));
+        return;
+      }
 
       (global as Record<string, unknown>)[`__mv_proc_${jobId}`] = proc;
 
@@ -299,7 +343,7 @@ export class YtDlpProvider extends BaseProvider {
       // Initial state transition
       onProgress(0, '', '', 'preparing');
 
-      proc.stdout.on('data', (chunk: Buffer) => {
+      proc.stdout?.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
         onLog(text);
 
@@ -362,7 +406,7 @@ export class YtDlpProvider extends BaseProvider {
         }
       });
 
-      proc.stderr.on('data', (chunk: Buffer) => {
+      proc.stderr?.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
         stderrBuffer += text;
         onLog(text);
@@ -391,15 +435,16 @@ export class YtDlpProvider extends BaseProvider {
           let finalPath = '';
           for (let i = normalizedCandidates.length - 1; i >= 0; i--) {
             const candidate = normalizedCandidates[i];
-            try {
-              if (fs.existsSync(candidate)) {
-                const stat = fs.statSync(candidate);
-                if (stat.isFile() && stat.size > 0) {
-                  finalPath = candidate;
-                  break;
-                }
-              }
-            } catch { /* ignore stat error */ }
+            const verified = verifyFileExists(candidate) || findMatchingFileInDir(resolvedDir, candidate, downloadStartTime);
+            if (verified) {
+              finalPath = verified;
+              break;
+            }
+          }
+
+          // If still not found, check resolvedDir for any media file created during this download
+          if (!finalPath) {
+            finalPath = findMatchingFileInDir(resolvedDir, outputTemplate, downloadStartTime) || '';
           }
 
           if (finalPath) {
@@ -442,7 +487,8 @@ export class YtDlpProvider extends BaseProvider {
 
       proc.on('error', (err) => {
         delete (global as Record<string, unknown>)[`__mv_proc_${jobId}`];
-        reject(new Error(`Failed to spawn yt-dlp: ${err.message}. Ensure yt-dlp is installed.`));
+        providerLogger.error({ jobId, err }, 'yt-dlp child process emitted error');
+        reject(new Error(`Failed to execute yt-dlp: ${err.message}. Ensure yt-dlp is installed and executable.`));
       });
     });
   }

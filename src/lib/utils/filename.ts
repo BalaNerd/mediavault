@@ -4,6 +4,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 const WINDOWS_RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 
@@ -70,11 +71,19 @@ export function getUniqueOutputPath(
 
 /**
  * Validate that download directory exists, is absolute, and is writable.
- * Creates folder recursively if missing.
+ * Creates folder recursively if missing and expands home directory (~) on all platforms.
  */
 export function validateDownloadFolder(dirPath: string): string {
   try {
-    const resolved = path.resolve(dirPath);
+    let resolved = dirPath.trim();
+    if (resolved.startsWith('~/') || resolved.startsWith('~\\')) {
+      resolved = path.join(os.homedir(), resolved.slice(2));
+    } else if (resolved === '~') {
+      resolved = os.homedir();
+    } else {
+      resolved = path.resolve(resolved);
+    }
+
     if (!fs.existsSync(resolved)) {
       fs.mkdirSync(resolved, { recursive: true });
     }
@@ -85,4 +94,103 @@ export function validateDownloadFolder(dirPath: string): string {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Download directory '${dirPath}' is invalid or not writable: ${msg}`);
   }
+}
+
+/**
+ * Normalize Unicode path for cross-platform matching (NFC).
+ */
+export function normalizeUnicodePath(filePath: string): string {
+  if (!filePath) return filePath;
+  return path.normalize(filePath).normalize('NFC');
+}
+
+/**
+ * Verify if a target file exists on disk, testing direct path,
+ * NFC normalization, and NFD normalization.
+ */
+export function verifyFileExists(targetPath: string): string | null {
+  try {
+    const resolved = path.resolve(targetPath);
+    const variants = [
+      resolved,
+      resolved.normalize('NFC'),
+      resolved.normalize('NFD'),
+    ];
+    for (const v of variants) {
+      if (fs.existsSync(v)) {
+        const s = fs.statSync(v);
+        if (s.isFile() && s.size > 0) return v;
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+/**
+ * Locate a downloaded file in the directory even if special/non-ASCII characters
+ * were mangled by console stdout (e.g. `·` becoming replacement char or empty).
+ */
+export function findMatchingFileInDir(
+  dir: string,
+  candidatePath: string,
+  minMtimeMs?: number
+): string | null {
+  try {
+    if (!fs.existsSync(dir)) return null;
+    const base = path.basename(candidatePath);
+    const ext = path.extname(base).toLowerCase();
+    const baseNoExt = path.basename(base, ext);
+
+    const entries = fs.readdirSync(dir);
+
+    // 1. Exact or Unicode-normalized match
+    for (const entry of entries) {
+      if (
+        entry.normalize('NFC') === base.normalize('NFC') ||
+        entry.normalize('NFD') === base.normalize('NFD')
+      ) {
+        const full = path.join(dir, entry);
+        const s = fs.statSync(full);
+        if (s.isFile() && s.size > 0) return full;
+      }
+    }
+
+    // 2. Fuzzy match stripping non-ASCII / corrupted characters (? or \uFFFD)
+    const cleanPattern = baseNoExt.replace(/[\uFFFD?]/g, '').trim();
+    if (cleanPattern.length >= 3) {
+      for (const entry of entries) {
+        const entryExt = path.extname(entry).toLowerCase();
+        if (ext && entryExt !== ext) continue;
+        const entryNoExt = path.basename(entry, entryExt);
+        if (entryNoExt.includes(cleanPattern) || cleanPattern.includes(entryNoExt)) {
+          const full = path.join(dir, entry);
+          const s = fs.statSync(full);
+          if (s.isFile() && s.size > 0) return full;
+        }
+      }
+    }
+
+    // 3. Fallback to newest media file in directory matching extension
+    if (minMtimeMs) {
+      const validExts = new Set(['.mp4', '.mkv', '.webm', '.mp3', '.m4a', '.flac', '.wav', '.opus', '.zip']);
+      const candidates = entries
+        .map((e) => path.join(dir, e))
+        .filter((full) => {
+          try {
+            const s = fs.statSync(full);
+            const fileExt = path.extname(full).toLowerCase();
+            const extOk = ext ? fileExt === ext : validExts.has(fileExt);
+            return s.isFile() && s.size > 0 && extOk && s.mtimeMs >= (minMtimeMs - 5000);
+          } catch {
+            return false;
+          }
+        })
+        .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+
+      if (candidates.length > 0) {
+        return candidates[0];
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
 }

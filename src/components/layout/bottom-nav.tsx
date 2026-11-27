@@ -16,8 +16,9 @@ export function BottomNav() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border px-3 py-1 flex items-center justify-around"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border px-3 pt-1 pb-[calc(0.35rem+env(safe-area-inset-bottom,0px))] flex items-center justify-around"
       aria-label="Mobile Navigation Bar"
+      style={{ paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom, 0px))' }}
     >
       {navItems.map((item) => {
         const active =
@@ -29,7 +30,7 @@ export function BottomNav() {
             id={item.id}
             href={item.href}
             className={cn(
-              'flex flex-col items-center justify-center min-h-[48px] min-w-[64px] py-1.5 px-3 rounded-xl text-xs font-medium transition-colors select-none',
+              'flex flex-col items-center justify-center min-h-[44px] min-w-[64px] py-1 px-3 rounded-xl text-xs font-medium transition-colors select-none touch-manipulation',
               active
                 ? 'text-primary bg-primary/10 font-semibold'
                 : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'

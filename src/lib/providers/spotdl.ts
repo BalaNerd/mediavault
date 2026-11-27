@@ -4,7 +4,7 @@
  * SECURITY: All child processes are spawned with array arguments.
  */
 
-import { spawn } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { BaseProvider } from './base';
@@ -12,6 +12,7 @@ import type { MediaMetadata, DownloadFormat, DownloadPhase } from '@/types/downl
 import type { ProviderCapabilities } from '@/types/provider';
 import { urlMatchesDomains } from '@/lib/utils/url';
 import { providerLogger } from '@/lib/logger';
+import { verifyFileExists } from '@/lib/utils/filename';
 
 const SUPPORTED_DOMAINS = ['open.spotify.com', 'spotify.com'];
 
@@ -71,14 +72,22 @@ export class SpotdlProvider extends BaseProvider {
     try {
       const binary = process.env.SPOTDL_PATH || 'spotdl';
       const info = await new Promise<string>((resolve) => {
-        const proc = spawn(binary, ['save', url, '--save-file', '-'], {
-          stdio: ['ignore', 'pipe', 'pipe'],
-          env: { ...process.env },
-        });
-        let out = '';
-        proc.stdout.on('data', (d: Buffer) => { out += d.toString(); });
-        proc.on('close', () => resolve(out));
-        proc.on('error', () => resolve(''));
+        try {
+          const proc = spawn(binary, ['save', url, '--save-file', '-'], {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: {
+              ...process.env,
+              PYTHONUTF8: '1',
+              PYTHONIOENCODING: 'utf-8',
+            },
+          });
+          let out = '';
+          proc.stdout?.on('data', (d: Buffer) => { out += d.toString(); });
+          proc.on('close', () => resolve(out));
+          proc.on('error', () => resolve(''));
+        } catch {
+          resolve('');
+        }
       });
 
       if (info.trim()) {
@@ -141,14 +150,26 @@ export class SpotdlProvider extends BaseProvider {
       onProgress(0, '', '', 'preparing');
       onLog(`[MediaVault SpotDL] Command: ${binary} ${args.join(' ')}\n`);
 
-      const proc = spawn(binary, args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: {
-          ...process.env,
-          // Ensure ffmpeg directory is in PATH if specified
-          ...(ffmpegPath ? { PATH: `${path.dirname(ffmpegPath)}${path.delimiter}${process.env.PATH || ''}` } : {}),
-        },
-      });
+      const ffmpegDir = ffmpegPath && ffmpegPath !== 'ffmpeg' && fs.existsSync(ffmpegPath)
+        ? (fs.statSync(ffmpegPath).isDirectory() ? ffmpegPath : path.dirname(ffmpegPath))
+        : undefined;
+
+      let proc: ChildProcess;
+      try {
+        proc = spawn(binary, args, {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: {
+            ...process.env,
+            PYTHONUTF8: '1',
+            PYTHONIOENCODING: 'utf-8',
+            ...(ffmpegDir ? { PATH: `${ffmpegDir}${path.delimiter}${process.env.PATH || ''}` } : {}),
+          },
+        });
+      } catch (spawnErr) {
+        delete (global as Record<string, unknown>)[`__mv_proc_${jobId}`];
+        reject(new Error(`Failed to spawn spotdl: ${(spawnErr as Error).message}. Ensure spotdl is installed.`));
+        return;
+      }
 
       (global as Record<string, unknown>)[`__mv_proc_${jobId}`] = proc;
 
@@ -157,7 +178,7 @@ export class SpotdlProvider extends BaseProvider {
       let completedTracks = 0;
       const downloadedFiles: string[] = [];
 
-      proc.stdout.on('data', (chunk: Buffer) => {
+      proc.stdout?.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
         onLog(text);
 
@@ -194,7 +215,7 @@ export class SpotdlProvider extends BaseProvider {
         }
       });
 
-      proc.stderr.on('data', (chunk: Buffer) => {
+      proc.stderr?.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
         stderrBuffer += text;
         onLog(text);
@@ -207,15 +228,11 @@ export class SpotdlProvider extends BaseProvider {
           // Check captured downloaded file paths
           let finalFile = '';
           for (const file of downloadedFiles) {
-            try {
-              if (fs.existsSync(file)) {
-                const stat = fs.statSync(file);
-                if (stat.isFile() && stat.size > 0) {
-                  finalFile = file;
-                  break;
-                }
-              }
-            } catch { /* ignore */ }
+            const verified = verifyFileExists(file);
+            if (verified) {
+              finalFile = verified;
+              break;
+            }
           }
 
           // If single track file exists
